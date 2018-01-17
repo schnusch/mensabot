@@ -1,0 +1,15 @@
+[general]
+token     = ""
+#tomorrow  = "20:00:00"
+#retries   = 3
+#retrywait = 30
+#mensas    = ["Alte Mensa", "Zeltschlösschen"]
+#patterns  = []
+
+[allow]
+#chats = []
+#users = []
+
+[deny]
+#chats = []
+#users = []
