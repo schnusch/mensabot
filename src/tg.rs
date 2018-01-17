@@ -201,6 +201,10 @@ impl Api {
 		}
 	}
 
+	pub fn get_me(&self) -> Result<User, Error> {
+		self.api_call("getMe", &())
+	}
+
 	pub fn get_updates(&mut self, allowed_updates: &Vec<&str>) -> Result<Vec<Update>, Error> {
 		let req = UpdateRequest {
 			offset:          self.offset,

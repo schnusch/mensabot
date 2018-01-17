@@ -193,7 +193,6 @@ fn create_menu_message(menu: &BTreeMap<MensaMatch, Vec<String>>) -> String {
 	let mut s = String::new();
 	let mut similarity = None;
 	for (mensa, meals) in menu.iter() {
-eprintln!("{} {}", mensa.similarity, mensa.name);
 		let oldlen = s.len();
 		match similarity {
 			None       => { similarity = Some(mensa.similarity); },
@@ -327,6 +326,12 @@ fn main() {
 	}
 
 	let mut api = tg::Api::new(&conf.general.token);
+
+	let botname = match conf.general.retry("retrieve bot name", || api.get_me()) {
+		Err(_) => None,
+		Ok(x)  => x.username
+	};
+
 	loop {
 		let upds = match conf.general.retry("get updates", || api.get_updates(&vec!["message"])) {
 			Err(_) => std::process::exit(1),
@@ -364,12 +369,28 @@ fn main() {
 			for ent in msg.entities.iter().filter(|ref u| u.entity_type == "bot_command") {
 				match ent.extract(&text) {
 					Err(e)  => error!("cannot extract entity: {}", e),
-					Ok(cmd) => if &cmd == "/mensa" {
-						cmds |= CMD_MENSA;
-						arg_start = ent.offset + ent.length;
-						arg_end   = text.len();
-					} else if &cmd == "/about" {
-						cmds |= CMD_ABOUT;
+					Ok(cmd) => {
+						let cmd = match botname {
+							None              => &cmd,
+							Some(ref botname) => {
+								let n = cmd.len();
+								let m = botname.len();
+								if n > m && &cmd[(n - m - 1)..(n - m)] == "@" && &cmd[(n - m)..] == botname {
+									&cmd[..(n - m - 1)]
+								} else {
+									&cmd
+								}
+							}
+						};
+						if cmd == "/mensa" {
+							cmds |= CMD_MENSA;
+							arg_start = ent.offset + ent.length;
+							arg_end   = text.len();
+						} else if cmd == "/about" {
+							cmds |= CMD_ABOUT;
+						} else {
+							eprintln!("command: {}", cmd);
+						}
 					}
 				}
 			}
@@ -395,20 +416,24 @@ fn main() {
 				info!("chat {} message {} ignored", msg.chat, msg.message_id);
 			} else {
 				if cmds & CMD_MENSA != 0 {
-					let arg = if arg_start < arg_end {
+					let mut arg = None;
+					if arg_start < arg_end {
 						// extract mensa search argument
-						let arg = tg::MessageEntity{
+						let argent = tg::MessageEntity{
 							entity_type: String::new(),
 							offset:      arg_start,
 							length:      arg_end - arg_start
 						};
-						match arg.extract(&text) {
-							Err(e) => {error!("cannot extract argument: {}", e); None},
-							Ok(x)  => Some(x.trim().to_lowercase())
+						match argent.extract(&text) {
+							Err(e) => error!("cannot extract argument: {}", e),
+							Ok(x)  => {
+								let x = x.trim();
+								if x.len() > 0 {
+									arg = Some(x.to_lowercase());
+								}
+							}
 						}
-					} else {
-						None
-					};
+					}
 					let re = make_menu_text(&msg, arg.as_ref().map(String::as_str), &conf.general.mensas, tomorrow.clone());
 					let _  = conf.general.retry("send menu", || api.send_text(&re));
 				}
