@@ -48,10 +48,10 @@ Configuration
 
 **allow**, **deny**
 	**chats**
-		Array of integer group IDs
+		Array of integer chat IDs
 
 	**users**
-		Array of strings that are tried to be interpreted as integer chat IDs
+		Array of strings that are tried to be interpreted as integer user IDs
 		or if unable to do so as usernames, names can be prefixed by an @-sign
 		to prevent interpretation as an ID.
 
